@@ -28,132 +28,60 @@ Result: 550 seconds
 (0-300: 300s recording + 450-700: 250s recording = 550s total)
 """
 
-
-from collections import defaultdict
-
-
 class CameraStateTracker:
-    """
-    Tracks camera state changes and calculates time spent in specific states.
-    
-    Records state change events for cameras and allows queries for the duration
-    a camera spent in a specific state within a time window.
-    """
-    
     def __init__(self):
-        """
-        Initialize the camera state tracker.
-        
-        Structure:
-        - camera_events: Dictionary mapping camera_id -> list of (timestamp, state) tuples
-                         Lists are kept sorted by timestamp (chronological order)
-        """
-        # Dictionary: camera_id -> list of (timestamp, state) tuples
-        # Each list is sorted by timestamp (events come in chronological order)
-        self.camera_events = defaultdict(list)
-    
+        # camera_id -> list of (timestamp, state)
+        self.camera_events = {}
+
     def add_state_change(self, camera_id, state, timestamp):
-        """
-        Record a state change event for a camera.
-        
-        Args:
-            camera_id (int): ID of the camera
-            state (str): New state ("recording", "paused", or "off")
-            timestamp (int): Timestamp in seconds when this state change occurred
-        
-        Example:
-            tracker.add_state_change(7, "recording", 0)
-        """
-        # Validate state
-        valid_states = {"recording", "paused", "off"}
-        if state not in valid_states:
-            raise ValueError(f"Invalid state: {state}. Must be one of {valid_states}")
-        
-        # Append the state change event
+        if camera_id not in self.camera_events:
+            self.camera_events[camera_id] = []
+
+        # Events arrive in chronological order
         self.camera_events[camera_id].append((timestamp, state))
-        
-        # Keep sorted by timestamp (events should come in chronological order)
-        self.camera_events[camera_id].sort(key=lambda x: x[0])
-    
+
     def get_state_duration(self, camera_id, state, start, end):
-        """
-        Calculate how long a camera spent in a specific state within a time window.
-        
-        Args:
-            camera_id (int): ID of the camera to query
-            state (str): The state to measure duration for
-            start (int): Start of time window (in seconds)
-            end (int): End of time window (in seconds)
-        
-        Returns:
-            int: Duration in seconds that the camera was in the specified state
-                 within the [start, end] time window
-        
-        Example:
-            tracker.get_state_duration(7, "recording", 0, 700)  # Returns 550
-        """
-        # Check if camera exists
-        if camera_id not in self.camera_events or not self.camera_events[camera_id]:
+        if camera_id not in self.camera_events:
             return 0
-        
+
         events = self.camera_events[camera_id]
-        
-        # Total duration in the specified state within the window
-        total_duration = 0
-        
-        # Find the initial state at the start of the window
-        # We need to find the last event before or at 'start'
-        initial_state = None
-        initial_time = start
-        
-        # Process events to find the state at the start of the window
-        for event_time, event_state in events:
-            if event_time <= start:
-                # This event affects the state at 'start'
-                initial_state = event_state
+        total = 0
+
+        current_state = None
+        current_time = None
+
+        # Find state at `start`
+        for t, s in events:
+            if t <= start:
+                current_state = s
+                current_time = start
             else:
-                # We've passed the start, stop looking
                 break
-        
-        # If no state found, there are no events (shouldn't happen due to check above)
-        if initial_state is None:
+
+        if current_state is None:
             return 0
-        
-        # Now calculate duration from start to end
-        current_state = initial_state
-        current_time = start
-        
-        # Iterate through events that occur within or after our window
-        for event_time, event_state in events:
-            # Skip events before the start (already handled)
-            if event_time < start:
+
+        # Walk through events
+        for t, s in events:
+            if t < start:
                 continue
-            
-            # If we've moved past the end of our window, stop
-            if event_time > end:
-                # Check if we were in the target state, and count remaining time
+
+            if t > end:
                 if current_state == state:
-                    # Count from current_time to end
-                    total_duration += end - current_time
-                break
-            
-            # Process the time from current_time to event_time
+                    total += end - current_time
+                return total
+
             if current_state == state:
-                # We were in the target state, add this duration
-                duration = event_time - current_time
-                total_duration += duration
-            
-            # Update current state and time
-            current_state = event_state
-            current_time = event_time
-        
-        # Handle the case where we haven't reached the end of the window
-        # This happens if all events are before 'end'
-        if current_time < end and current_state == state:
-            # Add remaining time in the target state
-            total_duration += end - current_time
-        
-        return total_duration
+                total += t - current_time
+
+            current_state = s
+            current_time = t
+
+        # After last event
+        if current_state == state and current_time < end:
+            total += end - current_time
+
+        return total
 
 
 # Example usage and test cases

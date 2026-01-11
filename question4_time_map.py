@@ -23,89 +23,37 @@ timeMap.get("foo", 5);           // return "bar2" (timestamp 4 is largest <= 5)
 """
 
 
-from collections import defaultdict
-from bisect import bisect_right
+
 
 
 class TimeMap:
-    """
-    Time-based key-value store.
-    
-    Stores multiple values for the same key at different timestamps.
-    Allows retrieval of the value associated with the largest timestamp
-    that is <= the query timestamp.
-    """
-    
     def __init__(self):
-        """
-        Initialize the TimeMap.
-        
-        Structure:
-        - store: Dictionary mapping key -> list of (timestamp, value) tuples
-                 Each list is kept sorted by timestamp for efficient binary search
-        """
-        # Dictionary: key -> list of (timestamp, value) tuples
-        # Lists are sorted by timestamp (assumes set() is called with increasing timestamps)
-        self.store = defaultdict(list)
-    
+        # key -> list of (timestamp, value)
+        self.store = {}
+
     def set(self, key, value, timestamp):
-        """
-        Store the key with value at the given timestamp.
-        
-        Args:
-            key (str): The key to store
-            value (str): The value to associate with the key
-            timestamp (int): The timestamp for this key-value pair
-        
-        Example:
-            timeMap.set("foo", "bar", 1)
-        """
-        # Append the (timestamp, value) pair to the key's list
-        # Since set() is typically called with increasing timestamps,
-        # the list remains sorted. For production code, you might want
-        # to use bisect.insort() to maintain sorted order.
+        if key not in self.store:
+            self.store[key] = []
+
+        # Append since timestamps are increasing
         self.store[key].append((timestamp, value))
-        
-        # Keep the list sorted by timestamp (for safety)
-        # In practice, if timestamps always increase, this isn't needed
-        # but it ensures correctness
-        self.store[key].sort(key=lambda x: x[0])
-    
+
     def get(self, key, timestamp):
-        """
-        Get the value for key at the given timestamp.
-        
-        Returns the value associated with the largest timestamp_prev <= timestamp.
-        If multiple values exist, returns the one with the largest timestamp_prev.
-        If no values exist, returns "".
-        
-        Args:
-            key (str): The key to look up
-            timestamp (int): The timestamp to query
-        
-        Returns:
-            str: The value at the largest timestamp <= query timestamp, or ""
-        
-        Example:
-            timeMap.get("foo", 3)  # Returns "bar" (from timestamp 1)
-        """
-        # Check if key exists
-        if key not in self.store or not self.store[key]:
+        if key not in self.store:
             return ""
-        
+
         values = self.store[key]
-        
-        # Use binary search to find the rightmost value with timestamp <= query timestamp
-        # bisect_right returns the position after the last element <= timestamp
-        pos = bisect_right(values, timestamp, key=lambda x: x[0])
-        
-        # If pos is 0, all timestamps are greater than query timestamp
-        if pos == 0:
-            return ""
-        
-        # Return the value at position pos-1 (the last timestamp <= query timestamp)
-        _, value = values[pos - 1]
-        return value
+        result = ""
+
+        # Linear scan to find the largest timestamp <= given timestamp
+        for time, value in values:
+            if time <= timestamp:
+                result = value
+            else:
+                break
+
+        return result
+
 
 
 # Example usage and test cases

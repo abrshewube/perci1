@@ -55,10 +55,14 @@ class RandomizedSet:
         """
         # Dictionary: value -> index in values list
         # Used for O(1) lookup and deletion
+        # self.val_to_index={1:0,3:1,6:2}
         self.val_to_index = {}
+
+        # example={1,3,6}
         
         # List: stores the actual values
         # Used for O(1) random access via index
+        # sef.values=[1,3,6]
         self.values = []
     
     def insert(self, val):
@@ -82,6 +86,9 @@ class RandomizedSet:
             return False
         
         # Add value to the list
+        # index=len(self.values)=0
+        # index=len(self.values)=1
+        
         index = len(self.values)
         self.values.append(val)
         
@@ -114,6 +121,9 @@ class RandomizedSet:
             return False
         
         # Get the index of the value to remove
+        # index_to_remove=self.val_to_index[1]=0
+        # index_to_remove=self.val_to_index[3]=1
+        # index_to_remove=self.val_to_index[6]=2
         index_to_remove = self.val_to_index[val]
         
         # Get the last element in the list
